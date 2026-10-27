@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>SoleStore Systemtest</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Rubik:wght@400;500;700&display=swap">
+<style>
+/* Layout: one narrow column like a drop app; each station is a ticket with two halves (alte Liste / neues System) */
+:root{
+  --bg:#F3F0EA; --surface:#FFFFFF; --sunk:#E9E5DD; --fg:#16181D; --muted:#5F636A; --line:#D6D1C7;
+  --accent:#FF5A1F; --accent-ink:#B93A0B; --on-accent:#16181D;
+  --good:#1D7A4B; --good-bg:#DDF2E5; --bad:#B42318; --bad-bg:#FBE3E0; --warn-bg:#FFF1D6;
+  --display:'Oswald',Impact,'Arial Narrow',sans-serif; --body:'Rubik',system-ui,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#16181D; --surface:#22252C; --sunk:#1C1F25; --fg:#F3F0EA; --muted:#A4A8AF; --line:#3A3E47;
+  --accent:#FF5A1F; --accent-ink:#FF8A5C; --on-accent:#16181D;
+  --good:#5ED596; --good-bg:#183526; --bad:#FF8B7D; --bad-bg:#3D1F1C; --warn-bg:#3A2F17; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#16181D; --surface:#22252C; --sunk:#1C1F25; --fg:#F3F0EA; --muted:#A4A8AF; --line:#3A3E47;
+  --accent:#FF5A1F; --accent-ink:#FF8A5C; --on-accent:#16181D;
+  --good:#5ED596; --good-bg:#183526; --bad:#FF8B7D; --bad-bg:#3D1F1C; --warn-bg:#3A2F17; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45}
+.wrap{max-width:860px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--display);text-transform:uppercase;letter-spacing:.01em;line-height:1.05;margin:0;text-wrap:balance}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.kicker{font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink)}
+.muted{color:var(--muted)}
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand h1{font-size:28px}
+.team{font-family:var(--display);font-size:15px;text-transform:uppercase;background:var(--fg);color:var(--bg);padding:4px 10px;border-radius:999px}
+.code{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.code .grp{display:flex;gap:2px;padding:3px;border:2px dashed var(--line);border-radius:8px}
+.code .l{width:24px;height:30px;display:grid;place-items:center;font-family:var(--display);font-size:18px;background:var(--sunk);border-radius:4px;color:var(--muted)}
+.code .l.on{background:var(--accent);color:var(--on-accent)}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.tab{border:2px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 4px;font-family:var(--display);text-transform:uppercase;font-size:14px;line-height:1.1}
+.tab small{display:block;font-family:var(--body);text-transform:none;font-size:11px;color:var(--muted)}
+.tab[aria-current="true"]{border-color:var(--fg);background:var(--fg);color:var(--bg)}
+.tab[aria-current="true"] small{color:var(--bg);opacity:.75}
+.tab .ok{color:var(--good);font-family:var(--body);font-weight:700}
+/* ticket */
+.ticket{background:var(--surface);border-radius:14px;position:relative;display:flex;flex-direction:column}
+.ticket>.sec{padding:18px;display:flex;flex-direction:column;gap:12px}
+.ticket>.sec+.sec{border-top:2px dashed var(--line)}
+.ticket::before,.ticket::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:var(--bg);top:var(--notch,64px)}
+.ticket::before{left:-9px}.ticket::after{right:-9px}
+.order{font-size:20px;line-height:1.35}
+.order b{color:var(--accent-ink)}
+.stepnum{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sys{display:flex;align-items:center;gap:8px}
+.sys h3{font-size:22px}
+.badge{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1.5px solid currentColor}
+/* tables */
+.tw{border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 9px;text-align:left;border-bottom:1px solid var(--line);overflow-wrap:break-word;hyphens:auto}
+@media (max-width:560px){table{font-size:13px}th,td{padding:6px 5px}th{font-size:11px}.k{display:block;width:max-content;margin:0 0 2px}
+ .ol tr.hd{display:none}
+ .ol tr{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 8px;padding:8px 10px;border-bottom:1px solid var(--line)}
+ .ol tr:last-child{border-bottom:0}
+ .ol td{border:0;padding:0;display:flex;flex-direction:column}
+ .ol td::before{content:attr(data-l);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+ .ol td.x{grid-column:2/-1;align-items:flex-end;justify-content:flex-end}.ol td.x::before{display:none}}
+th{font-size:12px;font-weight:700;background:var(--sunk);position:relative}
+tr:last-child td{border-bottom:0}
+td.click{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+td.click:hover{background:var(--warn-bg)}
+.chg{background:var(--good-bg);color:var(--good);font-weight:700}
+.old{background:var(--bad-bg);color:var(--bad);font-weight:700}
+.fake td{background:var(--bad-bg)}
+.new td{background:var(--good-bg)}
+.gone td{text-decoration:line-through;color:var(--muted)}
+.del{border:0;background:none;color:var(--bad);font-weight:700;padding:2px 4px;border-radius:6px;white-space:nowrap}
+.del:hover{background:var(--bad-bg)}
+.k{display:inline-block;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;margin-right:4px;border:1.5px solid var(--fg)}
+.k.pk{background:var(--fg);color:var(--bg)}
+.k.fk{border-style:dashed}
+.tables{display:flex;flex-direction:column;gap:14px}
+.tbl{display:flex;flex-direction:column;gap:6px;min-width:0}
+.tbl h4{margin:0;font-family:var(--display);text-transform:uppercase;font-size:16px;font-weight:500}
+.tbl.dim{opacity:.5}
+/* form */
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr));gap:8px;background:var(--sunk);padding:12px;border-radius:10px}
+.form label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:500;color:var(--muted)}
+.form input,.form select{font:inherit;font-size:15px;padding:7px 8px;border:1.5px solid var(--line);border-radius:7px;background:var(--surface);color:var(--fg);min-width:0}
+.form input.req{border-color:var(--bad);border-style:dashed}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{border:2px solid var(--fg);background:var(--fg);color:var(--bg);font-family:var(--display);text-transform:uppercase;font-size:16px;padding:9px 16px;border-radius:999px}
+.btn.ghost{background:transparent;color:var(--fg)}
+.btn.hot{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+/* messages */
+.msg{padding:12px 14px;border-radius:10px;font-size:15px;display:flex;flex-direction:column;gap:6px}
+.msg.bad{background:var(--bad-bg);border-left:5px solid var(--bad)}
+.msg.good{background:var(--good-bg);border-left:5px solid var(--good)}
+.msg.info{background:var(--warn-bg);border-left:5px solid var(--accent)}
+.msg strong{font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:5px 10px;border-radius:999px;border:1.5px solid var(--line);font-size:14px;background:var(--surface);transition:all .4s}
+.chip.lost{border-color:var(--bad);color:var(--bad);text-decoration:line-through;background:var(--bad-bg)}
+.chip.kept{border-color:var(--good);color:var(--good);background:var(--good-bg);font-weight:700}
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px}
+.panel{background:var(--sunk);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.panel h4{margin:0;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+/* quiz */
+.quiz{display:flex;flex-direction:column;gap:8px}
+.quiz .q{font-weight:700}
+.opt{text-align:left;border:2px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;font-size:15px}
+.opt:hover{border-color:var(--fg)}
+.opt.right{border-color:var(--good);background:var(--good-bg)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-bg)}
+.lock{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px;padding:14px;border:2px dashed var(--line);border-radius:10px}
+.name{display:flex;flex-direction:column;gap:6px}
+.name input,.name textarea{font:inherit;padding:9px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg)}
+.award{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.award .letters{display:flex;gap:4px}
+.award .letters span{width:38px;height:46px;display:grid;place-items:center;background:var(--accent);color:var(--on-accent);font-family:var(--display);font-size:28px;border-radius:6px;animation:flip .5s ease both}
+.award .letters span:nth-child(2){animation-delay:.12s}.award .letters span:nth-child(3){animation-delay:.24s}
+@keyframes flip{from{transform:rotateX(90deg)}to{transform:none}}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.shake{animation:shake .3s}
+/* start */
+.tables7{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:8px}
+.pick{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:12px;text-align:left;display:flex;flex-direction:column;gap:2px}
+.pick span{font-size:12px;color:var(--muted)}
+.pick b{font-family:var(--display);text-transform:uppercase;font-size:20px;font-weight:700}
+.pick[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}
+.pick[aria-pressed="true"] span{color:var(--on-accent)}
+.mail{background:var(--surface);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.mail .from{font-size:13px;color:var(--muted)}
+.mail .subj{font-weight:700}
+.play{display:flex;align-items:center;gap:12px}
+.play button{width:52px;height:52px;border-radius:50%;border:0;background:var(--accent);color:var(--on-accent);font-size:20px;flex:none}
+.bar{flex:1;height:6px;background:var(--sunk);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent)}
+.roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:8px}
+.role{background:var(--sunk);border-radius:10px;padding:10px;font-size:14px}
+.role b{display:block;font-family:var(--display);text-transform:uppercase;font-size:16px}
+/* final */
+.big{display:flex;gap:3px;flex-wrap:wrap;justify-content:center}
+.big span{width:clamp(26px,7.4vw,58px);height:clamp(38px,10.5vw,76px);display:grid;place-items:center;font-family:var(--display);font-size:clamp(22px,7vw,48px);background:var(--sunk);color:var(--muted);border-radius:8px}
+.big span.on{background:var(--accent);color:var(--on-accent)}
+.names{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:8px}
+.names div{background:var(--sunk);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px}
+.names b{font-family:var(--display);text-transform:uppercase}
+footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--muted)}
+footer button{background:none;border:0;text-decoration:underline;color:var(--muted);padding:0}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap" id="app" lang="de"></div>
+<audio id="mailAudio" preload="auto" src="sprachnachricht.mp3"></audio>
+
+<script>
+const OLD0=[
+ {nr:1007,d:"17.10.",k:"Lena Huber",s:"Air Max 90",m:"Nike",g:42,p:"129,99"},
+ {nr:1007,d:"17.10.",k:"Lena Huber",s:"Samba",m:"Adidas",g:42,p:"99,99"},
+ {nr:1011,d:"19.10.",k:"Lena Huber",s:"1460 Boot",m:"Dr. Martens",g:41,p:"199,99"},
+ {nr:1012,d:"20.10.",k:"Mia Sommer",s:"Samba",m:"Adidas",g:39,p:"79,99"},
+ {nr:1013,d:"20.10.",k:"Tom Berger",s:"Gazelle",m:"Adidas",g:44,p:"109,99"},
+ {nr:1015,d:"21.10.",k:"Mia Sommer",s:"Chelsea Boot",m:"Dr. Martens",g:38,p:"189,99"},
+ {nr:1016,d:"22.10.",k:"Jonas Kraus",s:"Air Max 90",m:"Nike",g:45,p:"129,99"},
+ {nr:1018,d:"23.10.",k:"Lena Huber",s:"Jordan 4",m:"Nike",g:42,p:"209,99"}];
+const KUNDE0=[{id:1,n:"Lena Huber"},{id:2,n:"Tom Berger"},{id:3,n:"Mia Sommer"},{id:4,n:"Jonas Kraus"}];
+const MARKE=[{id:1,n:"Nike"},{id:2,n:"Adidas"},{id:3,n:"Dr. Martens"}];
+const SCHUH0=[{id:1,b:"Air Max 90",p:"129,99",m:1},{id:2,b:"Samba",p:"79,99",m:2},{id:3,b:"1460 Boot",p:"199,99",m:3},{id:4,b:"Chelsea Boot",p:"189,99",m:3},{id:5,b:"Jordan 4",p:"209,99",m:1},{id:6,b:"Gazelle",p:"109,99",m:2}];
+const BEST0=[{id:1007,d:"17.10.",k:1},{id:1011,d:"19.10.",k:1},{id:1012,d:"20.10.",k:3},{id:1013,d:"20.10.",k:2},{id:1015,d:"21.10.",k:3},{id:1016,d:"22.10.",k:4},{id:1018,d:"23.10.",k:1}];
+const POS0=[{b:1007,s:1,g:42,a:1,p:"129,99"},{b:1007,s:2,g:42,a:1,p:"99,99"},{b:1011,s:3,g:41,a:1,p:"199,99"},{b:1012,s:2,g:39,a:1,p:"79,99"},{b:1013,s:6,g:44,a:1,p:"109,99"},{b:1015,s:4,g:38,a:1,p:"189,99"},{b:1016,s:1,g:45,a:1,p:"129,99"},{b:1018,s:5,g:42,a:1,p:"209,99"}];
+const TISCHE=[["1","Samba"],["2","Chelsea Boot"],["3","Air Max 90"],["4","Jordan 4"],["5","1460 Boot"],["6","Gazelle"],["7","Dunk"]];
+const CODES=["RED","UND","ANZ"];
+const clone=o=>JSON.parse(JSON.stringify(o));
+
+function fresh(){return{view:"start",team:null,
+ s:[ {old:{rows:clone(OLD0),form:false,saved:null,tried:false},q1:null,neu:{schuh:clone(SCHUH0),saved:false,err:null},q2:null,name:""},
+     {old:{rows:clone(OLD0),done:false},q1:null,neu:{kunde:clone(KUNDE0),done:false},q2:null,name:""},
+     {old:{rows:clone(OLD0)},q1:null,neu:{best:clone(BEST0),pos:clone(POS0),err:null},q2:null,name:""} ],
+ profi:{old:false,neu:false}}}
+let S=fresh();
+try{const raw=localStorage.getItem("solestore-systemtest-v1");if(raw)S=Object.assign(fresh(),JSON.parse(raw))}catch(e){}
+function save(){try{localStorage.setItem("solestore-systemtest-v1",JSON.stringify(S))}catch(e){}}
+const solved=i=>S.s[i].q1==="a"&&S.s[i].q2==="a";
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- header ---------- */
+function header(){
+ const team="";
+ const code=CODES.map((c,i)=>`<div class="grp" title="Code von Station ${i+1}">${[...c].map(l=>`<span class="l ${solved(i)?"on":""}">${solved(i)?l:"?"}</span>`).join("")}</div>`).join("");
+ const tabs=[["start","Start","Mail"],["s0","Station 1","Einfügen<br>Insert"],["s1","Station 2","Ändern<br>Update"],["s2","Station 3","Löschen<br>Delete"],["final","Code","Finale"]]
+  .map(([v,a,b],i)=>{const ok=i>=1&&i<=3&&solved(i-1);return `<button class="tab" data-go="${v}" aria-current="${S.view===v}">${a}${ok?'&nbsp;<span class="ok" aria-label="geschafft">✓</span>':""}<small>${b}</small></button>`}).join("");
+ return `<header class="top"><div class="brand"><span class="kicker">SoleStore · IT-Team</span><h1>Der Systemtest</h1></div>${team}</header>
+ <div class="code" aria-label="Euer Code">${code}<span class="muted" style="font-size:13px">← euer Code</span></div>
+ <nav class="tabs">${tabs}</nav>`}
+
+/* ---------- start ---------- */
+function startView(){
+  return `<section class="mail">
+  <span class="from">Von: Markus Kessler, Geschäftsführung SoleStore · An: IT-Team</span>
+  <span class="subj">Betreff: Ist euer neues System wirklich besser?</span>
+  <div class="play"><button id="playBtn" aria-label="Sprachnachricht anhören">▶</button><div class="bar"><i id="bar"></i></div><span class="muted" style="font-size:13px">Sprachnachricht anhören</span></div>
+  <p>Hallo zusammen,</p>
+  <p>der nächste Drop steht vor der Tür, und ehrlich gesagt: Unsere alte Bestellliste treibt mich in den Wahnsinn. Letzte Woche kam ein Paket nicht an, weil der Name falsch war. Und ein Schuh war plötzlich aus unserem Sortiment verschwunden.</p>
+  <p>Ihr habt ein neues System gebaut, mit Tabellen, Schlüsseln und allem Drum und Dran. Das hat viel Zeit gekostet. Bevor ich umstelle, will ich zwei Dinge wissen:</p>
+  <p><b>1. Warum macht die alte Liste eigentlich so viel Ärger?</b><br><b>2. Ist euer neues System wirklich besser?</b></p>
+  <p>Testet das bitte mit drei ganz normalen Aufgaben aus unserem Arbeitsalltag bei SoleStore: einen neuen Schuh eintragen, einen Namen ändern, eine Bestellung löschen. Immer erst in der alten Liste, dann im neuen System.</p>
+  <p>Ich brauche eure Antwort heute noch, vor dem Drop.</p>
+  <p>Danke euch!<br>Markus Kessler<br><span class="muted">Geschäftsführung SoleStore</span></p>
+ </section>
+ <section class="ticket" style="--notch:50%"><div class="sec">
+  <h2 style="font-size:24px">Euer Auftrag</h2>
+  <p class="order">Löst die Aufgaben an <b>Station 1 bis 3</b> und schreibt ein <b>Protokoll</b> zu euren Erkenntnissen.</p>
+  <p class="muted" style="font-size:14px">Jede Station: erst die alte Liste, dann das neue System. Jede geschaffte Station bringt 3 Buchstaben für euer Codewort.</p>
+  <div class="row"><button class="btn hot" data-go="s0">Los: Station 1</button></div>
+ </div></section>`}
+
+/* ---------- shared bits ---------- */
+const keyH=(t,c)=>`<th><span class="k ${t==="PK/FK"?"pk":t.toLowerCase()}">${t}</span>${c}</th>`;
+function quiz(i,which,q,opts,hints){
+ const st=S.s[i][which];
+ const o=opts.map(([id,txt])=>{let cls="";if(st===id)cls=id==="a"?"right":"wrong";return `<button class="opt ${cls}" data-quiz="${i}|${which}|${id}">${txt}</button>`});
+ // fixed shuffled order per question so "a" is not always first
+ const order=which==="q1"?[1,0,2]:[2,0,1];
+ let fb="";
+ if(st&&st!=="a")fb=`<div class="msg bad"><strong>Noch nicht.</strong>${hints[st]}</div>`;
+ if(st==="a")fb=`<div class="msg good"><strong>Genau.</strong>${hints.a}</div>`;
+ return `<div class="quiz"><span class="stepnum">${which==="q1"?"Frage 1":"Frage 2"}</span><p class="q">${q}</p>${order.map(k=>o[k]).join("")}${fb}</div>`}
+function lockMsg(t){return `<div class="lock">🔒 ${t}</div>`}
+function finish(i){
+ if(!solved(i))return "";
+ const nxt=i<2?`<button class="btn hot" data-go="s${i+1}">Weiter zu Station ${i+2}</button>`:`<button class="btn hot" data-go="final">Zum Codewort</button>`;
+ return `<div class="sec">
+  <div class="award"><div class="letters">${[...CODES[i]].map(l=>`<span>${l}</span>`).join("")}</div><p>Station geschafft. Diese 3 Buchstaben gehören zu eurem Code.</p></div>
+  <label class="name"><span><b>Protokoll:</b> Was ist in der alten Liste passiert, und warum klappt es im neuen System? Zwei Sätze.</span>
+   <textarea id="prot${i}" data-prot="${i}" rows="3" placeholder="Alte Liste: … Neues System: …">${esc(S.s[i].prot||"")}</textarea></label>
+  <label class="name"><span><b>Gebt der Panne in der alten Liste einen Namen.</b> Eure eigene Idee, ein bis drei Wörter.</span>
+   <input id="name${i}" data-name="${i}" maxlength="40" placeholder="z. B. Geister-Bestellung" value="${esc(S.s[i].name)}"></label>
+  <div class="row">${nxt}</div></div>`}
+
+/* ---------- old list table ---------- */
+function oldTable(rows,opt={}){
+ const head=`<tr class="hd"><th>BestellNr</th><th>Datum</th><th>Kunde</th><th>Schuhmodell</th><th>Marke</th><th>Größe</th><th>Preis bezahlt</th>${opt.del?"<th></th>":""}</tr>`;
+ const body=rows.map((r,ri)=>{
+  const cls=r.gone?"gone":r.fake?"fake":r.added?"new":"";
+  const kcls=opt.clickName?("click "+(r.k==="Lena Berg"?"chg":"")):"";
+  const v=x=>x===""||x==null?`<span style="color:var(--bad);font-weight:700">???</span>`:esc(x);
+  return `<tr class="${cls}"><td data-l="BestellNr">${v(r.nr)}</td><td data-l="Datum">${v(r.d)}</td><td data-l="Kunde" class="${kcls}" ${opt.clickName?`data-name-cell="${ri}"`:""}>${v(r.k)}</td><td data-l="Schuhmodell">${esc(r.s)}</td><td data-l="Marke">${esc(r.m)}</td><td data-l="Größe">${v(r.g)}</td><td data-l="Preis bezahlt">${esc(r.p)} €</td>${opt.del?`<td class="x">${r.gone?"":`<button class="del" data-del-old="${ri}" aria-label="Zeile ${r.nr} löschen">✕ Zeile löschen</button>`}</td>`:""}</tr>`}).join("");
+ return `<div class="tw ol" lang="de"><table>${head}${body}</table></div>`}
+
+/* ---------- Station 1: Einfügen ---------- */
+function st1(){
+ const s=S.s[0],o=s.old,n=s.neu;
+ let oldUI=oldTable(o.rows);
+ if(!o.saved){
+  oldUI+= o.form?`<div class="form">
+   <label>BestellNr<input class="req" id="f_nr" placeholder="?"></label>
+   <label>Datum<input class="req" id="f_d" placeholder="?"></label>
+   <label>Kunde<input class="req" id="f_k" placeholder="?"></label>
+   <label>Schuhmodell<input id="f_s" value="Dunk Low" readonly></label>
+   <label>Marke<input id="f_m" value="Nike" readonly></label>
+   <label>Größe<input class="req" id="f_g" placeholder="?"></label>
+   <label>Preis bezahlt<input id="f_p" value="119,99" readonly></label></div>
+   <div class="row"><button class="btn" data-a="s1save">Zeile speichern</button></div>
+   ${o.tried?`<div class="msg info"><strong>Die alte Liste kennt nur Bestellungen.</strong>Jede Zeile braucht BestellNr, Datum, Kunde und Größe. Aber niemand hat den Dunk Low bestellt. Was macht ihr?
+    <div class="row"><button class="btn ghost" data-a="s1empty">Felder leer lassen</button><button class="btn ghost" data-a="s1fake">Eine Bestellung erfinden</button></div></div>`:""}`
+   :`<div class="row"><button class="btn" data-a="s1form">+ Neue Zeile</button></div>`;
+ } else {
+  const umsatz=o.rows.length;
+  oldUI+= o.saved==="fake"
+   ?`<div class="msg bad"><strong>Gespeichert, aber gelogen.</strong>Laut Liste hat „Max Muster“ am 28.10. einen Dunk Low gekauft. Das stimmt nicht. Die Liste zählt jetzt ${umsatz} Bestellungen, und der Umsatz ist um 119,99 € zu hoch.</div>`
+   :`<div class="msg bad"><strong>Gespeichert, aber kaputt.</strong>Jetzt steht eine Bestellung ohne Nummer, ohne Datum und ohne Kunde in der Liste. Wer hat hier was gekauft? Die Liste zählt ${umsatz} Bestellungen.</div>`;
+ }
+ const q1=o.saved?quiz(0,"q1","Was ist beim Einfügen in der alten Liste das Problem?",
+   [["a","Den Schuh kann man nur eintragen, wenn man eine Bestellung dazu erfindet oder leer lässt."],["b","Die Liste ist zu voll für einen neuen Schuh."],["c","Nike darf nicht zweimal in der Liste stehen."]],
+   {a:"In der alten Liste ist jede Zeile eine Bestellung. Ein Schuh ohne Käufer hat dort keinen Platz.",b:"Platz ist genug. Schaut, was in jeder Zeile stehen muss.",c:"Nike steht schon dreimal drin, das ist erlaubt. Was fehlt in eurer neuen Zeile?"})
+   :lockMsg("Frage 1 kommt, sobald ihr den Dunk Low in der alten Liste gespeichert habt.");
+ // neu
+ let neuUI="";
+ if(s.q1!=="a")neuUI=lockMsg("Erst Frage 1 lösen, dann geht es ins neue System.");
+ else{
+  const rows=n.schuh.map(r=>`<tr class="${r.added?"new":""}"><td>${r.id}</td><td>${esc(r.b)}</td><td>${r.p} €</td><td>${r.m}</td></tr>`).join("");
+  neuUI=`<div class="tables">
+   <div class="tbl"><h4>Schuhmodell</h4><div class="tw"><table><tr>${keyH("PK","ID")}<th>Bezeichnung</th><th>Preis</th>${keyH("FK","MarkeID")}</tr>${rows}</table></div></div>
+   <div class="tbl"><h4>Marke</h4><div class="tw"><table><tr>${keyH("PK","ID")}<th>Name</th></tr>${MARKE.map(m=>`<tr><td>${m.id}</td><td>${m.n}</td></tr>`).join("")}</table></div></div>
+   <div class="tbl dim"><h4>Bestellung</h4><p class="muted" style="font-size:13px">brauchen wir hier nicht</p></div></div>`;
+  if(!n.saved)neuUI+=`<div class="form">
+   <label>ID<input value="7" readonly></label>
+   <label>Bezeichnung<input id="n_b" value="Dunk Low"></label>
+   <label>Preis<input id="n_p" value="119,99"></label>
+   <label>MarkeID<select id="n_m"><option value="">wählen</option><option>1</option><option>2</option><option>3</option></select></label></div>
+   <div class="row"><button class="btn" data-a="n1save">Zeile speichern</button></div>
+   ${n.err?`<div class="msg info ${""}">${n.err}</div>`:""}`;
+  else neuUI+=`<div class="msg good"><strong>Fertig. Eine Zeile, nichts erfunden.</strong>Der Dunk Low steht im Sortiment, obwohl ihn noch niemand bestellt hat.</div>`;
+ }
+ const q2=n.saved?quiz(0,"q2","Warum klappt das Einfügen im neuen System?",
+   [["a","Schuhmodell hat eine eigene Tabelle und braucht keine Bestellung."],["b","Das neue System erfindet die Bestellung automatisch."],["c","Weil wir den Preis weggelassen haben."]],
+   {a:"Jeder Entitätstyp hat seine eigene Tabelle. Über die MarkeID (FK) hängt der Schuh an Nike.",b:"Schaut in die Tabelle Bestellung: Ist dort eine neue Zeile dazugekommen?",c:"Der Preis steht in eurer Zeile. Welche Tabelle habt ihr gar nicht gebraucht?"}):"";
+ return ticket(0,"Neuer Schuh im Sortiment",`Der <b>Dunk Low</b> von <b>Nike</b> kommt für <b>119,99 €</b> ins Sortiment. Der Drop ist erst nächste Woche, also hat ihn <b>noch niemand bestellt</b>. Tragt ihn ein.`,oldUI,q1,neuUI,q2)}
+
+/* ---------- Station 2: Ändern ---------- */
+function st2(){
+ const s=S.s[1],o=s.old,n=s.neu;
+ const changed=o.rows.filter(r=>r.k==="Lena Berg").length, left=o.rows.filter(r=>r.k==="Lena Huber");
+ let oldUI=`<p class="muted" style="font-size:14px">Tippt auf einen Namen, um ihn zu ändern.</p>`+oldTable(o.rows,{clickName:!o.done});
+ oldUI+=`<div class="row"><span><b>${changed}</b> Stelle${changed===1?"":"n"} geändert</span>${o.done?"":`<button class="btn" data-a="s2done" ${changed?"":"disabled"}>Fertig</button>`}</div>`;
+ if(o.done){
+  oldUI+= left.length
+   ?`<div class="msg bad"><strong>Widerspruch!</strong>Bestellung ${left.map(r=>r.nr).join(", ")} läuft noch auf Lena Huber. Die Rechnung geht an den alten Namen, die anderen an Lena Berg. Welcher Name stimmt jetzt?
+     <div class="row"><button class="btn ghost" data-a="s2fix">Rest auch noch ändern</button></div></div>`
+   :`<div class="msg info"><strong>Geschafft, aber mühsam.</strong>Ihr musstet Lena an ${changed} Stellen ändern. Hättet ihr eine übersehen, würde sich die Liste widersprechen.</div>`;
+ }
+ const q1=o.done?quiz(1,"q1","Was ist beim Ändern in der alten Liste das Problem?",
+   [["a","Lena steht mehrfach drin. Vergisst man eine Stelle, widerspricht sich die Liste."],["b","Namen darf man in einer Liste nicht ändern."],["c","Die Liste löscht Lena beim Ändern automatisch."]],
+   {a:"Das ist Redundanz: Dasselbe steht mehrfach drin. Daraus kann Inkonsistenz werden.",b:"Ändern ist erlaubt. Wie oft musstet ihr es tun?",c:"Lena ist noch da. Zählt, wie oft ihr Name vorkommt."})
+   :lockMsg("Frage 1 kommt, sobald ihr auf „Fertig“ getippt habt.");
+ let neuUI="";
+ if(s.q1!=="a")neuUI=lockMsg("Erst Frage 1 lösen, dann geht es ins neue System.");
+ else{
+  const kunde=n.kunde.map((k,i)=>`<tr><td>${k.id}</td><td class="${n.done?"":"click"} ${k.n==="Lena Berg"?"chg":""}" ${n.done?"":`data-kname="${i}"`}>${esc(k.n)}</td></tr>`).join("");
+  const kn=id=>n.kunde.find(k=>k.id===id).n;
+  const best=BEST0.map(b=>`<tr><td>${b.id}</td><td>${b.d}</td><td>${b.k}</td></tr>`).join("");
+  const view=BEST0.map(b=>`<tr><td>${b.id}</td><td class="${b.k===1&&n.done?"chg":""}">${esc(kn(b.k))}</td></tr>`).join("");
+  neuUI=`<p class="muted" style="font-size:14px">Tippt in der Tabelle Kunde auf Lenas Namen.</p><div class="tables">
+   <div class="tbl"><h4>Kunde</h4><div class="tw"><table><tr>${keyH("PK","ID")}<th>Name</th></tr>${kunde}</table></div></div>
+   <div class="tbl"><h4>Bestellung</h4><div class="tw"><table><tr>${keyH("PK","ID")}<th>Datum</th>${keyH("FK","KundeID")}</tr>${best}</table></div></div>
+   <div class="tbl"><h4>Versand-Etiketten</h4><div class="tw"><table><tr><th>Bestellung</th><th>geht an</th></tr>${view}</table></div><p class="muted" style="font-size:12px">holt den Namen über die KundeID</p></div></div>`;
+  if(n.done)neuUI+=`<div class="msg good"><strong>1 Änderung, fertig.</strong>Alle drei Bestellungen von Lena zeigen jetzt auf Lena Berg. Kein Widerspruch möglich.</div>`;
+ }
+ const q2=n.done?quiz(1,"q2","Warum reicht im neuen System eine einzige Änderung?",
+   [["a","Der Name steht nur einmal in Kunde. Bestellung merkt sich nur die KundeID (FK)."],["b","Das System ändert alle Kopien automatisch mit."],["c","Lena hat im neuen System nur eine Bestellung."]],
+   {a:"Jede Information steht genau einmal. Alles andere verweist über den Schlüssel darauf.",b:"Es gibt gar keine Kopien. Schaut, was in der Tabelle Bestellung steht.",c:"Zählt in Bestellung die KundeID 1."}):"";
+ return ticket(1,"Neuer Name",`Lena Huber hat geheiratet und heißt jetzt <b>Lena Berg</b>. Ändert ihren Namen, damit Rechnung und Paket richtig ankommen.`,oldUI,q1,neuUI,q2)}
+
+/* ---------- Station 3: Löschen ---------- */
+function st3(){
+ const s=S.s[2],o=s.old,n=s.neu;
+ const live=o.rows.filter(r=>!r.gone);
+ const anyDel=o.rows.some(r=>r.gone);
+ const kunden=[...new Set(OLD0.map(r=>r.k))], schuhe=[...new Set(OLD0.map(r=>r.s))];
+ const kc=kunden.map(k=>`<span class="chip ${anyDel&&!live.some(r=>r.k===k)?"lost":""}">${k}</span>`).join("");
+ const sc=schuhe.map(x=>{const r=OLD0.find(y=>y.s===x);return `<span class="chip ${anyDel&&!live.some(r=>r.s===x)?"lost":""}">${x} · ${r.p} €</span>`}).join("");
+ let oldUI=oldTable(o.rows,{del:true})+`<div class="panels"><div class="panel"><h4>Unsere Kundschaft laut Liste</h4><div class="chips">${kc}</div></div><div class="panel"><h4>Unser Sortiment laut Liste</h4><div class="chips">${sc}</div></div></div>`;
+ const del1013=o.rows.some(r=>r.nr===1013&&r.gone);
+ if(anyDel&&!del1013)oldUI+=`<div class="msg info"><strong>Falsche Zeile?</strong>Tom storniert Bestellung 1013. <button class="btn ghost" data-a="s3reset" style="margin-top:6px">Liste zurücksetzen</button></div>`;
+ if(del1013)oldUI+=`<div class="msg bad"><strong>Da ist mehr weg als die Bestellung.</strong>Schaut in die Kästen: Wer und was fehlt jetzt?</div>`;
+ const q1=del1013?quiz(2,"q1","Was ist beim Löschen in der alten Liste passiert?",
+   [["a","Mit der Bestellung sind auch Tom und die Gazelle mit Preis verschwunden."],["b","Nur die Bestellung ist weg, sonst nichts."],["c","Tom wurde in eine andere Zeile verschoben."]],
+   {a:"Tom und die Gazelle standen nur in dieser einen Zeile. SoleStore will den Schuh aber beim nächsten Drop wieder verkaufen.",b:"Schaut in die beiden Kästen unter der Liste.",c:"Sucht Tom in der Liste. Ist er noch irgendwo?"})
+   :lockMsg("Frage 1 kommt, sobald ihr Bestellung 1013 gelöscht habt.");
+ let neuUI="";
+ if(s.q1!=="a")neuUI=lockMsg("Erst Frage 1 lösen, dann geht es ins neue System.");
+ else{
+  const bGone=!n.best.some(b=>b.id===1013), pGone=!n.pos.some(p=>p.b===1013);
+  const kunde=KUNDE0.map(k=>`<tr class="${bGone&&k.id===2?"new":""}"><td>${k.id}</td><td>${k.n}</td></tr>`).join("");
+  const schuh=SCHUH0.map(x=>`<tr class="${bGone&&x.id===6?"new":""}"><td>${x.id}</td><td>${x.b}</td><td>${x.p} €</td></tr>`).join("");
+  const best=n.best.map(b=>`<tr><td>${b.id}</td><td>${b.d}</td><td>${b.k}</td><td><button class="del" data-del-best="${b.id}" aria-label="Bestellung ${b.id} löschen">✕</button></td></tr>`).join("");
+  const pos=n.pos.map(p=>`<tr><td>${p.b}</td><td>${p.s}</td><td>${p.g}</td><td>${p.p} €</td><td><button class="del" data-del-pos="${p.b}|${p.s}" aria-label="Position ${p.b}, ${p.s} löschen">✕</button></td></tr>`).join("");
+  neuUI=`<p class="muted" style="font-size:14px">Löscht hier alles, was zur Bestellung 1013 gehört.</p><div class="tables">
+   <div class="tbl"><h4>Bestellung</h4><div class="tw"><table><tr>${keyH("PK","ID")}<th>Datum</th>${keyH("FK","KundeID")}<th></th></tr>${best}</table></div></div>
+   <div class="tbl"><h4>Bestellposition</h4><div class="tw"><table><tr>${keyH("PK/FK","Bestellung&shy;ID")}${keyH("PK/FK","Schuh&shy;modell&shy;ID")}<th>Größe</th><th>Kaufpreis</th><th></th></tr>${pos}</table></div></div>
+   <div class="tbl"><h4>Kunde</h4><div class="tw"><table><tr>${keyH("PK","ID")}<th>Name</th></tr>${kunde}</table></div></div>
+   <div class="tbl"><h4>Schuhmodell</h4><div class="tw"><table><tr>${keyH("PK","ID")}<th>Bezeichnung</th><th>Preis</th></tr>${schuh}</table></div></div></div>`;
+  if(n.err)neuUI+=`<div class="msg info">${n.err}</div>`;
+  if(bGone&&pGone)neuUI+=`<div class="msg good"><strong>Storno erledigt.</strong>Bestellung 1013 ist weg. Tom steht noch in Kunde, die Gazelle noch in Schuhmodell (grün).</div>`;
+ }
+ const done=!n.best.some(b=>b.id===1013)&&!n.pos.some(p=>p.b===1013);
+ const q2=s.q1==="a"&&done?quiz(2,"q2","Warum bleiben Tom und die Gazelle im neuen System erhalten?",
+   [["a","Kunde, Schuhmodell und Bestellung sind getrennte Tabellen. Wir löschen nur die Bestellung."],["b","Das System macht vorher eine Sicherheitskopie."],["c","Tom hat noch eine andere Bestellung."]],
+   {a:"Weil jeder Entitätstyp seine eigene Tabelle hat, trifft das Löschen nur die Bestellung.",b:"Es gibt keine Kopie. In welcher Tabelle steht Tom?",c:"Schaut in Bestellung: Gibt es noch eine Zeile mit KundeID 2?"}):"";
+ return ticket(2,"Storno",`Tom Berger storniert seine Bestellung <b>1013</b>. Es war die einzige Bestellung der Gazelle. Löscht die Bestellung.`,oldUI,q1,neuUI,q2)}
+
+function ticket(i,title,order,oldUI,q1,neuUI,q2){
+ return `<section class="ticket"><div class="sec">
+  <span class="kicker">Station ${i+1} von 3 · ${["Einfügen (Insert)","Ändern (Update)","Löschen (Delete)"][i]} · 6 Minuten</span>
+  <h2 style="font-size:30px">${title}</h2><p class="order">${order}</p></div>
+  <div class="sec"><div class="sys"><span class="badge" style="color:var(--bad)">Alt</span><h3>Die alte Liste</h3></div>${oldUI}${q1}</div>
+  <div class="sec"><div class="sys"><span class="badge" style="color:var(--good)">Neu</span><h3>Euer neues System</h3></div>${neuUI}${q2}</div>
+  ${finish(i)}</section>`}
+
+/* ---------- final ---------- */
+function finalView(){
+ const all=CODES.join(""),n=[0,1,2].filter(solved).length;
+ const letters=[...all].map((l,k)=>{const on=solved(Math.floor(k/3));return `<span class="${on?"on":""}">${on?l:"?"}</span>`}).join("");
+ const names=["Einfügen","Ändern","Löschen"].map((t,i)=>`<div><span class="kicker">Station ${i+1} · ${t}</span><b>${S.s[i].name?esc(S.s[i].name):"noch kein Name"}</b><span style="font-size:14px">${S.s[i].prot?esc(S.s[i].prot):"<span class='muted'>noch kein Protokoll</span>"}</span></div>`).join("");
+ const p=S.profi;
+ return `<section class="ticket" style="--notch:46px"><div class="sec">
+  <span class="kicker">Euer Codewort</span>
+  <div class="big" aria-label="Codewort">${letters}</div>
+  ${n<3?`<p class="muted">Noch ${3-n} Station${3-n===1?"":"en"} offen.</p>`:`<p class="order">Dieses Wort ist der <b>Grund für alle drei Pannen</b> in der alten Liste. Was hat es damit zu tun? Einigt euch auf einen Satz.</p>`}
+ </div><div class="sec">
+  <h3 style="font-size:20px">Euer Protokoll</h3><div class="names">${names}</div>
+ </div><div class="sec">
+  <span class="kicker">Profi-Auftrag für Schnelle</span>
+  <p class="order">Mia hat bei Bestellung 1012 Größe <b>40</b> bekommen, nicht 39. Wie viele Stellen müsst ihr ändern?</p>
+  <div class="row"><span>Alte Liste:</span><button class="btn ghost" data-profi="old|1">1</button><button class="btn ghost" data-profi="old|2">2</button><button class="btn ghost" data-profi="old|4">4</button></div>
+  <div class="row"><span>Neues System:</span><button class="btn ghost" data-profi="neu|1">1</button><button class="btn ghost" data-profi="neu|2">2</button><button class="btn ghost" data-profi="neu|4">4</button></div>
+  ${p.old&&p.neu?`<div class="msg ${p.old==="1"&&p.neu==="1"?"good":"bad"}">${p.old==="1"&&p.neu==="1"?"<strong>Richtig: je 1 Stelle.</strong>Die Größe steht in beiden Systemen nur einmal (alte Liste: Zeile 1012, neu: Bestellposition 1012/2). Also keine Anomalie. Anomalien entstehen nur, wo etwas mehrfach gespeichert ist.":"<strong>Schaut noch mal genau hin.</strong>In wie vielen Zeilen steht Mias Größe 39 bei Bestellung 1012?"}</div>`:""}
+ </div></section>`}
+
+/* ---------- render ---------- */
+function render(){
+ const v=S.view;let body="";
+ if(v==="start")body=startView();else if(v==="s0")body=st1();else if(v==="s1")body=st2();else if(v==="s2")body=st3();else body=finalView();
+ document.getElementById("app").innerHTML=header()+body+`<footer><span>SoleStore · LF 7 · Anomalien</span><button data-a="reset">Alles zurücksetzen</button></footer>`;
+ save()}
+let confirmReset=false;
+document.addEventListener("click",e=>{
+ const t=e.target.closest("button,td");if(!t)return;
+ const d=t.dataset;const s=S.s;
+ if(d.go){S.view=d.go;render();window.scrollTo({top:0,behavior:"smooth"});return}
+ if(d.team){S.team=TISCHE.find(x=>x[0]===d.team);render();return}
+ if(d.quiz){const[i,w,id]=d.quiz.split("|");if(S.s[i][w]!=="a")S.s[i][w]=id;render();return}
+ if(d.profi){const[k,v]=d.profi.split("|");S.profi[k]=v;render();return}
+ if(d.nameCell!==undefined&&!s[1].old.done){const r=s[1].old.rows[+d.nameCell];
+   if(r.k==="Lena Huber"){r.k="Lena Berg";render()}else if(r.k!=="Lena Berg"){t.classList.remove("shake");void t.offsetWidth;t.classList.add("shake")}return}
+ if(d.kname!==undefined){const k=s[1].neu.kunde[+d.kname];if(k.n==="Lena Huber"){k.n="Lena Berg";s[1].neu.done=true;render()}else{t.classList.remove("shake");void t.offsetWidth;t.classList.add("shake")}return}
+ if(d.delOld!==undefined){s[2].old.rows[+d.delOld].gone=true;render();return}
+ if(d.delBest){const id=+d.delBest,n=s[2].neu;
+   if(n.pos.some(p=>p.b===id)){n.err=`<strong>Gesperrt.</strong>In Bestellposition zeigt noch eine Zeile mit BestellungID ${id} (FK) auf diese Bestellung. Löscht zuerst die Position.`}
+   else{n.best=n.best.filter(b=>b.id!==id);n.err=id===1013?null:`Ihr habt Bestellung ${id} gelöscht. Gesucht war 1013. <button class="btn ghost" data-a="s3nreset" style="margin-top:6px">Zurücksetzen</button>`}
+   render();return}
+ if(d.delPos){const[b,x]=d.delPos.split("|").map(Number),n=s[2].neu;n.pos=n.pos.filter(p=>!(p.b===b&&p.s===x));
+   n.err=b===1013?null:`Diese Position gehört zu Bestellung ${b}. Gesucht war 1013. <button class="btn ghost" data-a="s3nreset" style="margin-top:6px">Zurücksetzen</button>`;render();return}
+ const a=d.a;if(!a)return;
+ if(a==="s1form"){s[0].old.form=true}
+ else if(a==="s1save"){const f=["f_nr","f_d","f_k","f_g"].map(id=>document.getElementById(id).value.trim());
+   if(f.every(Boolean)){s[0].old.rows.push({nr:f[0],d:f[1],k:f[2],s:"Dunk Low",m:"Nike",g:f[3],p:"119,99",fake:true});s[0].old.saved="fake"}else s[0].old.tried=true}
+ else if(a==="s1empty"){s[0].old.rows.push({nr:"",d:"",k:"",s:"Dunk Low",m:"Nike",g:"",p:"119,99",fake:true});s[0].old.saved="empty"}
+ else if(a==="s1fake"){s[0].old.rows.push({nr:9999,d:"28.10.",k:"Max Muster",s:"Dunk Low",m:"Nike",g:42,p:"119,99",fake:true});s[0].old.saved="fake"}
+ else if(a==="n1save"){const m=document.getElementById("n_m").value,b=document.getElementById("n_b").value.trim()||"Dunk Low",p=document.getElementById("n_p").value.trim()||"119,99";
+   if(m==="1"){s[0].neu.schuh.push({id:7,b,p,m:1,added:true});s[0].neu.saved=true;s[0].neu.err=null}
+   else s[0].neu.err=m?`<strong>MarkeID ${m} ist ${MARKE[m-1].n}.</strong>Schaut in die Tabelle Marke: Welche ID hat Nike?`:`<strong>Welche Marke?</strong>Wählt die MarkeID. Die Tabelle Marke verrät euch die richtige Zahl.`}
+ else if(a==="s2done"){s[1].old.done=true}
+ else if(a==="s2fix"){s[1].old.rows.forEach(r=>{if(r.k==="Lena Huber")r.k="Lena Berg"})}
+ else if(a==="s3reset"){s[2].old.rows=clone(OLD0)}
+ else if(a==="s3nreset"){s[2].neu={best:clone(BEST0),pos:clone(POS0),err:null}}
+ else if(a==="reset"){if(!confirmReset){confirmReset=true;t.textContent="Wirklich alles löschen? Nochmal tippen";setTimeout(()=>{confirmReset=false;render()},4000);return}confirmReset=false;S=fresh()}
+ render()});
+document.addEventListener("input",e=>{const d=e.target.dataset;if(d.name!==undefined){S.s[+d.name].name=e.target.value;save()}if(d.prot!==undefined){S.s[+d.prot].prot=e.target.value;save()}});
+/* audio */
+const au=document.getElementById("mailAudio");
+document.addEventListener("click",e=>{if(e.target.id==="playBtn"){if(au.paused){au.play().catch(()=>{});}else au.pause()}});
+au.addEventListener("timeupdate",()=>{const b=document.getElementById("bar");if(b&&au.duration)b.style.width=(au.currentTime/au.duration*100)+"%"});
+["play","pause","ended"].forEach(ev=>au.addEventListener(ev,()=>{const p=document.getElementById("playBtn");if(p)p.textContent=au.paused?"▶":"❚❚"}));
+render();
+</script>
+
+</body>
+</html>
