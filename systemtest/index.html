@@ -219,7 +219,7 @@ function startView(){
  </section>
  <section class="ticket" style="--notch:50%"><div class="sec">
   <h2 style="font-size:24px">Euer Auftrag</h2>
-  <p class="order">Löst die Aufgaben an <b>Station 1 bis 3</b> und schreibt ein <b>Protokoll</b> zu euren Erkenntnissen.</p>
+  <p class="order">Löst die Aufgaben an <b>Station 1 bis 3</b>.</p>
   <p class="muted" style="font-size:14px">Jede Station: erst die alte Liste, dann das neue System. Jede geschaffte Station bringt 3 Buchstaben für euer Codewort.</p>
   <div class="row"><button class="btn hot" data-go="s0">Los: Station 1</button></div>
  </div></section>`}
@@ -241,8 +241,6 @@ function finish(i){
  const nxt=i<2?`<button class="btn hot" data-go="s${i+1}">Weiter zu Station ${i+2}</button>`:`<button class="btn hot" data-go="final">Zum Codewort</button>`;
  return `<div class="sec">
   <div class="award"><div class="letters">${[...CODES[i]].map(l=>`<span>${l}</span>`).join("")}</div><p>Station geschafft. Diese 3 Buchstaben gehören zu eurem Code.</p></div>
-  <label class="name"><span><b>Protokoll:</b> Was ist in der alten Liste passiert, und warum klappt es im neuen System? Zwei Sätze.</span>
-   <textarea id="prot${i}" data-prot="${i}" rows="3" placeholder="Alte Liste: … Neues System: …">${esc(S.s[i].prot||"")}</textarea></label>
   <label class="name"><span><b>Gebt der Panne in der alten Liste einen Namen.</b> Eure eigene Idee, ein bis drei Wörter.</span>
    <input id="name${i}" data-name="${i}" maxlength="40" placeholder="z. B. Geister-Bestellung" value="${esc(S.s[i].name)}"></label>
   <div class="row">${nxt}</div></div>`}
@@ -391,14 +389,14 @@ function ticket(i,title,order,oldUI,q1,neuUI,q2){
 function finalView(){
  const all=CODES.join(""),n=[0,1,2].filter(solved).length;
  const letters=[...all].map((l,k)=>{const on=solved(Math.floor(k/3));return `<span class="${on?"on":""}">${on?l:"?"}</span>`}).join("");
- const names=["Einfügen","Ändern","Löschen"].map((t,i)=>`<div><span class="kicker">Station ${i+1} · ${t}</span><b>${S.s[i].name?esc(S.s[i].name):"noch kein Name"}</b><span style="font-size:14px">${S.s[i].prot?esc(S.s[i].prot):"<span class='muted'>noch kein Protokoll</span>"}</span></div>`).join("");
+ const names=["Einfügen","Ändern","Löschen"].map((t,i)=>`<div><span class="kicker">Station ${i+1} · ${t}</span><b>${S.s[i].name?esc(S.s[i].name):"noch kein Name"}</b></div>`).join("");
  const p=S.profi;
  return `<section class="ticket" style="--notch:46px"><div class="sec">
   <span class="kicker">Euer Codewort</span>
   <div class="big" aria-label="Codewort">${letters}</div>
   ${n<3?`<p class="muted">Noch ${3-n} Station${3-n===1?"":"en"} offen.</p>`:`<p class="order">Dieses Wort ist der <b>Grund für alle drei Pannen</b> in der alten Liste. Was hat es damit zu tun? Einigt euch auf einen Satz.</p>`}
  </div><div class="sec">
-  <h3 style="font-size:20px">Euer Protokoll</h3><div class="names">${names}</div>
+  <h3 style="font-size:20px">Eure Namen für die drei Pannen</h3><div class="names">${names}</div>
  </div><div class="sec">
   <span class="kicker">Profi-Auftrag für Schnelle</span>
   <p class="order">Mia hat bei Bestellung 1012 Größe <b>40</b> bekommen, nicht 39. Wie viele Stellen müsst ihr ändern?</p>
